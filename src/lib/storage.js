@@ -42,9 +42,14 @@ export async function getTopics() {
     try {
       const { data, error } = await supabase.from('tracker_topics').select('*').order('created_at', { ascending: true });
       if (!error && data && data.length > 0) {
+        const normalized = data.map(t => ({
+          ...t,
+          monthlySalary: t.monthly_salary != null ? Number(t.monthly_salary) : (t.monthlySalary || null),
+          defaultRate: t.default_rate != null ? Number(t.default_rate) : (t.defaultRate || null)
+        }));
         // Sync local storage copy
-        setLocal(STORAGE_KEYS.TOPICS, data);
-        return data;
+        setLocal(STORAGE_KEYS.TOPICS, normalized);
+        return normalized;
       }
     } catch (e) {
       console.warn('Supabase fetch topics failed, falling back to local:', e);
@@ -201,17 +206,78 @@ export async function toggleCheckin(dateStr, topicId, itemKey, newValue) {
 }
 
 /**
- * Get rates / cost preferences
+ * Synchronous local get rates
  */
-export function getRates() {
+export function getRatesSync() {
   return getLocal(STORAGE_KEYS.RATES, INITIAL_RATES);
 }
 
 /**
- * Save rates
+ * Get rates / cost preferences (merges local storage with cloud topics)
  */
-export function saveRates(newRates) {
+export async function getRates() {
+  const local = getLocal(STORAGE_KEYS.RATES, null);
+  let currentRates = local ? { ...local } : { ...INITIAL_RATES };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('tracker_topics')
+        .select('id, default_rate, monthly_salary');
+
+      if (!error && data && data.length > 0) {
+        data.forEach(t => {
+          if (t.id === 'topic_lunch' && t.default_rate != null) {
+            currentRates.lunchRate = Number(t.default_rate);
+          }
+          if (t.id === 'topic_dinner' && t.default_rate != null) {
+            currentRates.dinnerRate = Number(t.default_rate);
+          }
+          if (t.id === 'topic_maid' && t.monthly_salary != null) {
+            currentRates.maidMonthlySalary = Number(t.monthly_salary);
+          }
+        });
+        setLocal(STORAGE_KEYS.RATES, currentRates);
+      }
+    } catch (e) {
+      console.warn('Supabase fetch rates failed:', e);
+    }
+  }
+
+  return currentRates;
+}
+
+/**
+ * Save rates both locally and sync to Supabase tracker_topics
+ */
+export async function saveRates(newRates) {
   setLocal(STORAGE_KEYS.RATES, newRates);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (newRates.lunchRate != null) {
+        await supabase
+          .from('tracker_topics')
+          .update({ default_rate: Number(newRates.lunchRate) })
+          .eq('id', 'topic_lunch');
+      }
+      if (newRates.dinnerRate != null) {
+        await supabase
+          .from('tracker_topics')
+          .update({ default_rate: Number(newRates.dinnerRate) })
+          .eq('id', 'topic_dinner');
+      }
+      if (newRates.maidMonthlySalary != null) {
+        await supabase
+          .from('tracker_topics')
+          .update({ monthly_salary: Number(newRates.maidMonthlySalary) })
+          .eq('id', 'topic_maid');
+      }
+    } catch (e) {
+      console.error('Supabase saveRates error:', e);
+    }
+  }
+
   return newRates;
 }
 

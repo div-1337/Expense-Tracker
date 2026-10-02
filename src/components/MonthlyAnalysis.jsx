@@ -13,7 +13,7 @@ import {
   Calculator,
   UserCheck
 } from 'lucide-react';
-import { getMonthlySummary, getRates, saveRates } from '../lib/storage';
+import { getMonthlySummary, getRates, getRatesSync, saveRates } from '../lib/storage';
 import { getMonthLabel, getYearMonth, getAllDaysInMonth } from '../lib/dateUtils';
 
 export default function MonthlyAnalysis({ topics, selectedDate, onSelectDate }) {
@@ -23,18 +23,16 @@ export default function MonthlyAnalysis({ topics, selectedDate, onSelectDate }) 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [ratesSavedNotice, setRatesSavedNotice] = useState(false);
+  const [ratesSaving, setRatesSaving] = useState(false);
 
   // Rate settings
-  const [rates, setRates] = useState({
-    lunchRate: 60,
-    dinnerRate: 70,
-    maidMonthlySalary: 3000,
-    maidAllowedLeaves: 4,
-  });
+  const [rates, setRates] = useState(getRatesSync);
 
   useEffect(() => {
-    const saved = getRates();
-    if (saved) setRates(saved);
+    getRates().then(cloudRates => {
+      if (cloudRates) setRates(cloudRates);
+    });
   }, []);
 
   useEffect(() => {
@@ -72,9 +70,23 @@ export default function MonthlyAnalysis({ topics, selectedDate, onSelectDate }) 
   };
 
   const handleRateChange = (field, val) => {
-    const updated = { ...rates, [field]: Number(val) || 0 };
+    const updated = { ...rates, [field]: val };
     setRates(updated);
-    saveRates(updated);
+  };
+
+  const handleSaveRates = async () => {
+    const cleaned = {
+      lunchRate: rates.lunchRate === '' ? 60 : (Number(rates.lunchRate) || 0),
+      dinnerRate: rates.dinnerRate === '' ? 70 : (Number(rates.dinnerRate) || 0),
+      maidMonthlySalary: rates.maidMonthlySalary === '' ? 3000 : (Number(rates.maidMonthlySalary) || 0),
+      maidAllowedLeaves: rates.maidAllowedLeaves === '' ? 4 : (Number(rates.maidAllowedLeaves) || 0)
+    };
+    setRatesSaving(true);
+    await saveRates(cleaned);
+    setRates(cleaned);
+    setRatesSaving(false);
+    setRatesSavedNotice(true);
+    setTimeout(() => setRatesSavedNotice(false), 2500);
   };
 
   if (loading || !summary) {
@@ -359,60 +371,94 @@ export default function MonthlyAnalysis({ topics, selectedDate, onSelectDate }) 
         {/* Rate configuration pills */}
         <div
           style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '12px',
             background: 'rgba(255, 255, 255, 0.03)',
-            padding: '0.85rem 1rem',
+            padding: '1rem',
             borderRadius: 'var(--radius-md)',
             marginBottom: '1.25rem',
             border: '1px solid var(--border-subtle)'
           }}
         >
-          <div style={{ flex: 1, minWidth: '120px' }}>
-            <label className="form-label" style={{ fontSize: '0.75rem' }}>Lunch Rate (₹)</label>
-            <input
-              type="number"
-              className="form-input"
-              style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem' }}
-              value={rates.lunchRate}
-              onChange={(e) => handleRateChange('lunchRate', e.target.value)}
-            />
-          </div>
-          <div style={{ flex: 1, minWidth: '120px' }}>
-            <label className="form-label" style={{ fontSize: '0.75rem' }}>Dinner Rate (₹)</label>
-            <input
-              type="number"
-              className="form-input"
-              style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem' }}
-              value={rates.dinnerRate}
-              onChange={(e) => handleRateChange('dinnerRate', e.target.value)}
-            />
-          </div>
-          <div style={{ flex: 1, minWidth: '135px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 0 }}>Maid Monthly Salary (₹)</label>
-            </div>
-            <input
-              type="number"
-              className="form-input"
-              style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem', marginTop: '4px' }}
-              value={rates.maidMonthlySalary ?? 3000}
-              onChange={(e) => handleRateChange('maidMonthlySalary', e.target.value)}
-            />
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
-              ≈ ₹{Math.round(maidDailyRate)}/day (÷ {totalDays}d)
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              ⚙️ Rate & Salary Settings (Syncs across all phones)
             </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {ratesSavedNotice && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--emerald)', fontWeight: 700, background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  ✓ Saved to Cloud!
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleSaveRates}
+                disabled={ratesSaving}
+                className="submit-modal-btn"
+                style={{
+                  padding: '0.35rem 0.85rem',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  background: 'linear-gradient(135deg, var(--emerald), #059669)',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {ratesSaving ? 'Saving...' : '💾 Save Rates'}
+              </button>
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: '120px' }}>
-            <label className="form-label" style={{ fontSize: '0.75rem' }}>Allowed Free Leaves</label>
-            <input
-              type="number"
-              className="form-input"
-              style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem' }}
-              value={rates.maidAllowedLeaves ?? 4}
-              onChange={(e) => handleRateChange('maidAllowedLeaves', e.target.value)}
-            />
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ flex: 1, minWidth: '120px' }}>
+              <label className="form-label" style={{ fontSize: '0.75rem' }}>Lunch Rate (₹)</label>
+              <input
+                type="number"
+                className="form-input"
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem' }}
+                value={rates.lunchRate}
+                onChange={(e) => handleRateChange('lunchRate', e.target.value)}
+                onBlur={handleSaveRates}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: '120px' }}>
+              <label className="form-label" style={{ fontSize: '0.75rem' }}>Dinner Rate (₹)</label>
+              <input
+                type="number"
+                className="form-input"
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem' }}
+                value={rates.dinnerRate}
+                onChange={(e) => handleRateChange('dinnerRate', e.target.value)}
+                onBlur={handleSaveRates}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: '135px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 0 }}>Maid Monthly Salary (₹)</label>
+              </div>
+              <input
+                type="number"
+                className="form-input"
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem', marginTop: '4px' }}
+                value={rates.maidMonthlySalary ?? 3000}
+                onChange={(e) => handleRateChange('maidMonthlySalary', e.target.value)}
+                onBlur={handleSaveRates}
+              />
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
+                ≈ ₹{Math.round(maidDailyRate)}/day (÷ {totalDays}d)
+              </span>
+            </div>
+            <div style={{ flex: 1, minWidth: '120px' }}>
+              <label className="form-label" style={{ fontSize: '0.75rem' }}>Allowed Free Leaves</label>
+              <input
+                type="number"
+                className="form-input"
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.88rem' }}
+                value={rates.maidAllowedLeaves ?? 4}
+                onChange={(e) => handleRateChange('maidAllowedLeaves', e.target.value)}
+                onBlur={handleSaveRates}
+              />
+            </div>
           </div>
         </div>
 
