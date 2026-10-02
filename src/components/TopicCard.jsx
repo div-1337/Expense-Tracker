@@ -75,17 +75,13 @@ export default function TopicCard({
   const isAbsent = (presenceRaw === false || presenceRaw === 0 || presenceRaw === 'absent') && presenceRaw !== null && presenceRaw !== undefined;
 
   const handlePresenceClick = (status) => {
-    let newVal;
-    if (status === true && isPresent) {
-      newVal = null;
-    } else if (status === false && isAbsent) {
-      newVal = null;
-    } else {
-      newVal = status;
-    }
-    onToggleCheckin(topic.id, 'presence', newVal);
+    // If already set to this status, keep it! Never auto-untick or double-tap untick
+    if (status === true && isPresent) return;
+    if (status === false && isAbsent) return;
 
-    if (newVal === true) {
+    onToggleCheckin(topic.id, 'presence', status);
+
+    if (status === true) {
       try {
         confetti({
           particleCount: 30,
@@ -283,24 +279,49 @@ export default function TopicCard({
 
       {/* Case 2: Presence toggle (Maid Presence, or single occurrence) */}
       {topic.type === 'presence' && (
-        <div className="presence-toggle-row">
-          <button
-            type="button"
-            onClick={() => handlePresenceClick(true)}
-            className={`presence-btn present ${isPresent ? 'active' : ''}`}
-          >
-            <CheckCircle2 size={18} />
-            <span>{isToday ? 'Present Today' : 'Present'}</span>
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="presence-toggle-row">
+            <button
+              type="button"
+              onClick={() => handlePresenceClick(true)}
+              className={`presence-btn present ${isPresent ? 'active' : ''}`}
+            >
+              <CheckCircle2 size={18} />
+              <span>{isToday ? 'Present Today' : 'Present'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handlePresenceClick(false)}
-            className={`presence-btn absent ${isAbsent ? 'active' : ''}`}
-          >
-            <XCircle size={18} />
-            <span>Absent</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => handlePresenceClick(false)}
+              className={`presence-btn absent ${isAbsent ? 'active' : ''}`}
+            >
+              <XCircle size={18} />
+              <span>Absent</span>
+            </button>
+          </div>
+
+          {(isPresent || isAbsent) && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => onToggleCheckin(topic.id, 'presence', null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.74rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 4px',
+                  textDecoration: 'underline'
+                }}
+              >
+                Clear / Reset attendance
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

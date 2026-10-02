@@ -113,6 +113,10 @@ export async function deleteTopic(topicId) {
  * Returns object: { [topicId]: { [personOrPresenceKey]: boolean } }
  */
 export async function getDailyCheckins(dateStr) {
+  const allCheckins = getLocal(STORAGE_KEYS.CHECKINS, {});
+  const localDay = allCheckins[dateStr] || {};
+  let result = JSON.parse(JSON.stringify(localDay));
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
@@ -120,17 +124,24 @@ export async function getDailyCheckins(dateStr) {
         .select('*')
         .eq('date_ist', dateStr);
 
-      if (!error && data) {
-        const result = {};
-        data.forEach(item => {
-          if (!result[item.topic_id]) result[item.topic_id] = {};
-          if (item.item_key === 'presence') {
-            result[item.topic_id][item.item_key] = item.completed === true ? true : (item.completed === false ? false : (item.count > 0));
-          } else {
-            result[item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
-          }
-        });
+      if (!error && Array.isArray(data)) {
+        if (data.length > 0) {
+          const cloudResult = {};
+          data.forEach(item => {
+            if (!cloudResult[item.topic_id]) cloudResult[item.topic_id] = {};
+            if (item.item_key === 'presence') {
+              cloudResult[item.topic_id][item.item_key] = item.completed === true ? true : (item.completed === false ? false : (item.count > 0));
+            } else {
+              cloudResult[item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
+            }
+          });
+          result = { ...result, ...cloudResult };
+          allCheckins[dateStr] = result;
+          setLocal(STORAGE_KEYS.CHECKINS, allCheckins);
+        }
         return result;
+      } else if (error) {
+        console.warn('Supabase fetch error, using local:', error.message || error);
       }
     } catch (e) {
       console.warn('Supabase fetch checkins failed, using local:', e);
@@ -138,8 +149,7 @@ export async function getDailyCheckins(dateStr) {
   }
 
   // Local fallback
-  const allCheckins = getLocal(STORAGE_KEYS.CHECKINS, {});
-  return allCheckins[dateStr] || {};
+  return result;
 }
 
 /**
@@ -162,14 +172,15 @@ export async function toggleCheckin(dateStr, topicId, itemKey, newValue) {
   if (isSupabaseConfigured && supabase) {
     try {
       if (newValue === null || newValue === undefined) {
-        await supabase
+        const { error } = await supabase
           .from('tracker_checkins')
           .delete()
           .match({ date_ist: dateStr, topic_id: topicId, item_key: itemKey });
+        if (error) console.warn('Supabase delete error:', error.message || error);
       } else {
         const isNum = typeof newValue === 'number';
         const isBool = typeof newValue === 'boolean';
-        await supabase.from('tracker_checkins').upsert({
+        const { error } = await supabase.from('tracker_checkins').upsert({
           date_ist: dateStr,
           topic_id: topicId,
           item_key: itemKey,
@@ -179,6 +190,7 @@ export async function toggleCheckin(dateStr, topicId, itemKey, newValue) {
         }, {
           onConflict: 'date_ist,topic_id,item_key'
         });
+        if (error) console.warn('Supabase upsert error:', error.message || error);
       }
     } catch (e) {
       console.error('Supabase toggleCheckin error:', e);
