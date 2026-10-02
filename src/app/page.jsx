@@ -13,7 +13,9 @@ import {
   saveTopics,
   deleteTopic,
   getDailyCheckins,
-  toggleCheckin
+  toggleCheckin,
+  subscribeToCheckins,
+  subscribeToTopics
 } from '../lib/storage';
 import { Plus, ListFilter, Sparkles } from 'lucide-react';
 
@@ -56,6 +58,22 @@ export default function Home() {
       mounted = false;
     };
   }, [loadTopics, loadDayData, selectedDate]);
+
+  // Real-time synchronization subscription (updates UI live when other roommates tick)
+  useEffect(() => {
+    const unsubscribeCheckins = subscribeToCheckins(selectedDate, () => {
+      loadDayData(selectedDate);
+    });
+
+    const unsubscribeTopics = subscribeToTopics(() => {
+      loadTopics();
+    });
+
+    return () => {
+      unsubscribeCheckins();
+      unsubscribeTopics();
+    };
+  }, [selectedDate, loadDayData, loadTopics]);
 
   // Midnight IST auto-reset watcher
   useEffect(() => {

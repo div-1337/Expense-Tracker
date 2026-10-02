@@ -276,3 +276,56 @@ export async function getMonthlySummary(year, month, topics) {
 
   return summary;
 }
+
+/**
+ * Real-time subscription for check-ins on a specific date
+ */
+export function subscribeToCheckins(dateStr, onUpdate) {
+  if (!isSupabaseConfigured || !supabase) return () => {};
+
+  const channel = supabase
+    .channel(`realtime_checkins_${dateStr}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'tracker_checkins',
+        filter: `date_ist=eq.${dateStr}`
+      },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Real-time subscription for topics
+ */
+export function subscribeToTopics(onUpdate) {
+  if (!isSupabaseConfigured || !supabase) return () => {};
+
+  const channel = supabase
+    .channel('realtime_topics')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'tracker_topics'
+      },
+      () => {
+        onUpdate();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

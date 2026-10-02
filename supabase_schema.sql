@@ -49,3 +49,7 @@ VALUES
   ('topic_dinner', 'Dinner', 'Moon', '#8B5CF6', 'people', '["Divyam", "Kanishk"]'::jsonb, 70),
   ('topic_maid', 'Maid Presence', 'Sparkles', '#06B6D4', 'presence', '[]'::jsonb, NULL)
 ON CONFLICT (id) DO NOTHING;
+
+-- 6. Enable Realtime Broadcasting (Instantly push ticks to all flatmate phones)
+ALTER PUBLICATION supabase_realtime ADD TABLE tracker_topics;
+ALTER PUBLICATION supabase_realtime ADD TABLE tracker_checkins;
