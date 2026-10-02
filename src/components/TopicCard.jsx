@@ -67,11 +67,33 @@ export default function TopicCard({
     }
   };
 
+  const presenceRaw = topicCheckins['presence'];
+  const isPresent = presenceRaw === true || presenceRaw === 1 || presenceRaw === 'present';
+  const isAbsent = (presenceRaw === false || presenceRaw === 0 || presenceRaw === 'absent') && presenceRaw !== null && presenceRaw !== undefined;
+
   const handlePresenceClick = (status) => {
-    // status can be true (present) or false (absent)
-    const current = topicCheckins['presence'];
-    const newVal = current === status ? null : status;
+    let newVal;
+    if (status === true && isPresent) {
+      newVal = null;
+    } else if (status === false && isAbsent) {
+      newVal = null;
+    } else {
+      newVal = status;
+    }
     onToggleCheckin(topic.id, 'presence', newVal);
+
+    if (newVal === true) {
+      try {
+        confetti({
+          particleCount: 30,
+          spread: 50,
+          origin: { y: 0.75 },
+          colors: ['#10B981', '#ffffff', '#06B6D4']
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
   };
 
   const handleAddPersonSubmit = (e) => {
@@ -260,20 +282,18 @@ export default function TopicCard({
       {topic.type === 'presence' && (
         <div className="presence-toggle-row">
           <button
+            type="button"
             onClick={() => handlePresenceClick(true)}
-            className={`presence-btn present ${
-              topicCheckins['presence'] === true ? 'active' : ''
-            }`}
+            className={`presence-btn present ${isPresent ? 'active' : ''}`}
           >
             <CheckCircle2 size={18} />
             <span>Present Today</span>
           </button>
 
           <button
+            type="button"
             onClick={() => handlePresenceClick(false)}
-            className={`presence-btn absent ${
-              topicCheckins['presence'] === false ? 'active' : ''
-            }`}
+            className={`presence-btn absent ${isAbsent ? 'active' : ''}`}
           >
             <XCircle size={18} />
             <span>Absent</span>

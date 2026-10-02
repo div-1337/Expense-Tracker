@@ -37,10 +37,10 @@ ALTER TABLE tracker_topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tracker_checkins ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read tracker_topics" ON tracker_topics FOR SELECT USING (true);
-CREATE POLICY "Allow public insert/update tracker_topics" ON tracker_topics FOR ALL USING (true);
+CREATE POLICY "Allow public insert/update tracker_topics" ON tracker_topics FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow public read tracker_checkins" ON tracker_checkins FOR SELECT USING (true);
-CREATE POLICY "Allow public insert/update tracker_checkins" ON tracker_checkins FOR ALL USING (true);
+CREATE POLICY "Allow public insert/update tracker_checkins" ON tracker_checkins FOR ALL USING (true) WITH CHECK (true);
 
 -- 5. Seed default topics
 INSERT INTO tracker_topics (id, name, icon, color, type, people, default_rate)

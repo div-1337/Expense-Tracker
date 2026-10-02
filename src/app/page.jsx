@@ -96,12 +96,15 @@ export default function Home() {
     // Optimistic UI update
     setDayData((prev) => {
       const topicObj = prev[topicId] || {};
+      const newTopicObj = { ...topicObj };
+      if (newVal === null || newVal === undefined) {
+        delete newTopicObj[itemKey];
+      } else {
+        newTopicObj[itemKey] = newVal;
+      }
       return {
         ...prev,
-        [topicId]: {
-          ...topicObj,
-          [itemKey]: newVal
-        }
+        [topicId]: newTopicObj
       };
     });
 

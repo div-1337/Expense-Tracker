@@ -124,7 +124,11 @@ export async function getDailyCheckins(dateStr) {
         const result = {};
         data.forEach(item => {
           if (!result[item.topic_id]) result[item.topic_id] = {};
-          result[item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? item.count : item.completed;
+          if (item.item_key === 'presence') {
+            result[item.topic_id][item.item_key] = item.completed === true ? true : (item.completed === false ? false : (item.count > 0));
+          } else {
+            result[item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
+          }
         });
         return result;
       }
@@ -147,24 +151,35 @@ export async function toggleCheckin(dateStr, topicId, itemKey, newValue) {
   if (!allCheckins[dateStr]) allCheckins[dateStr] = {};
   if (!allCheckins[dateStr][topicId]) allCheckins[dateStr][topicId] = {};
   
-  allCheckins[dateStr][topicId][itemKey] = newValue;
+  if (newValue === null || newValue === undefined) {
+    delete allCheckins[dateStr][topicId][itemKey];
+  } else {
+    allCheckins[dateStr][topicId][itemKey] = newValue;
+  }
   setLocal(STORAGE_KEYS.CHECKINS, allCheckins);
 
   // Cloud sync
   if (isSupabaseConfigured && supabase) {
     try {
-      const isNum = typeof newValue === 'number';
-      const isBool = typeof newValue === 'boolean';
-      await supabase.from('tracker_checkins').upsert({
-        date_ist: dateStr,
-        topic_id: topicId,
-        item_key: itemKey,
-        completed: isBool ? newValue : (isNum ? newValue > 0 : Boolean(newValue)),
-        count: isNum ? newValue : (newValue ? 1 : 0),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'date_ist,topic_id,item_key'
-      });
+      if (newValue === null || newValue === undefined) {
+        await supabase
+          .from('tracker_checkins')
+          .delete()
+          .match({ date_ist: dateStr, topic_id: topicId, item_key: itemKey });
+      } else {
+        const isNum = typeof newValue === 'number';
+        const isBool = typeof newValue === 'boolean';
+        await supabase.from('tracker_checkins').upsert({
+          date_ist: dateStr,
+          topic_id: topicId,
+          item_key: itemKey,
+          completed: isBool ? newValue : (isNum ? newValue > 0 : Boolean(newValue)),
+          count: isNum ? newValue : (newValue ? 1 : 0),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'date_ist,topic_id,item_key'
+        });
+      }
     } catch (e) {
       console.error('Supabase toggleCheckin error:', e);
     }
@@ -209,7 +224,11 @@ export async function getMonthlySummary(year, month, topics) {
         data.forEach(item => {
           if (!allCheckins[item.date_ist]) allCheckins[item.date_ist] = {};
           if (!allCheckins[item.date_ist][item.topic_id]) allCheckins[item.date_ist][item.topic_id] = {};
-          allCheckins[item.date_ist][item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? item.count : item.completed;
+          if (item.item_key === 'presence') {
+            allCheckins[item.date_ist][item.topic_id][item.item_key] = item.completed === true ? true : (item.completed === false ? false : (item.count > 0));
+          } else {
+            allCheckins[item.date_ist][item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
+          }
         });
       }
     } catch (e) {
@@ -264,10 +283,10 @@ export async function getMonthlySummary(year, month, topics) {
           topicStats.counts[person] = (topicStats.counts[person] || 0) + count;
         });
       } else if (topic.type === 'presence') {
-        // 'presence' key or boolean
-        if (topicDay['presence'] === true) {
+        const pVal = topicDay['presence'];
+        if (pVal === true || pVal === 1 || pVal === 'present') {
           topicStats.presenceCount += 1;
-        } else if (topicDay['presence'] === false) {
+        } else if (pVal === false || pVal === 0 || pVal === 'absent') {
           topicStats.absentCount += 1;
         }
       }

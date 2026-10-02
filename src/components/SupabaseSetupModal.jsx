@@ -36,9 +36,9 @@ CREATE TABLE IF NOT EXISTS tracker_checkins (
 ALTER TABLE tracker_topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tracker_checkins ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all read" ON tracker_topics FOR SELECT USING (true);
-CREATE POLICY "Allow all write" ON tracker_topics FOR ALL USING (true);
+CREATE POLICY "Allow all write" ON tracker_topics FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all read checkins" ON tracker_checkins FOR SELECT USING (true);
-CREATE POLICY "Allow all write checkins" ON tracker_checkins FOR ALL USING (true);`;
+CREATE POLICY "Allow all write checkins" ON tracker_checkins FOR ALL USING (true) WITH CHECK (true);`;
 
   const copySql = () => {
     navigator.clipboard.writeText(sqlSchema);
