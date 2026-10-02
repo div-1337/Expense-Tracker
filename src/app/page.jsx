@@ -185,6 +185,7 @@ export default function Home() {
                   key={topic.id}
                   topic={topic}
                   dayData={dayData}
+                  selectedDate={selectedDate}
                   onToggleCheckin={handleToggleCheckin}
                   onAddPersonToTopic={handleAddPersonToTopic}
                   onRemovePersonFromTopic={handleRemovePersonFromTopic}
@@ -210,6 +211,10 @@ export default function Home() {
           <MonthlyAnalysis
             topics={topics}
             selectedDate={selectedDate}
+            onSelectDate={(date) => {
+              setSelectedDate(date);
+              setActiveTab('daily');
+            }}
           />
         </section>
       )}

@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { getTodayIST } from '../lib/dateUtils';
 
 const ICON_MAP = {
   Utensils,
@@ -25,6 +26,7 @@ const ICON_MAP = {
 export default function TopicCard({
   topic,
   dayData,
+  selectedDate,
   onToggleCheckin,
   onAddPersonToTopic,
   onRemovePersonFromTopic,
@@ -35,6 +37,7 @@ export default function TopicCard({
 
   const IconComponent = ICON_MAP[topic.icon] || Check;
   const topicCheckins = dayData[topic.id] || {};
+  const isToday = !selectedDate || selectedDate === getTodayIST();
 
   const getPersonCount = (person) => {
     const val = topicCheckins[person];
@@ -287,7 +290,7 @@ export default function TopicCard({
             className={`presence-btn present ${isPresent ? 'active' : ''}`}
           >
             <CheckCircle2 size={18} />
-            <span>Present Today</span>
+            <span>{isToday ? 'Present Today' : 'Present'}</span>
           </button>
 
           <button

@@ -14,9 +14,9 @@ import {
   UserCheck
 } from 'lucide-react';
 import { getMonthlySummary, getRates, saveRates } from '../lib/storage';
-import { getMonthLabel, getYearMonth } from '../lib/dateUtils';
+import { getMonthLabel, getYearMonth, getAllDaysInMonth } from '../lib/dateUtils';
 
-export default function MonthlyAnalysis({ topics, selectedDate }) {
+export default function MonthlyAnalysis({ topics, selectedDate, onSelectDate }) {
   const currentYM = getYearMonth(selectedDate);
   const [year, setYear] = useState(currentYM.year);
   const [month, setMonth] = useState(currentYM.month);
@@ -273,6 +273,71 @@ export default function MonthlyAnalysis({ topics, selectedDate }) {
             <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
               {totalPayableDays} payable days ({presentDays} work + {paidAbsentLeaves} paid leave) @ ₹{Math.round(maidDailyRate)}/d • ₹{maidSharePerPerson}/person
             </span>
+          </div>
+        </div>
+
+        {/* Daily Attendance Log & Direct Date Editor */}
+        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              📅 Daily Attendance Log ({getAllDaysInMonth(year, month).length} days)
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--emerald)', fontWeight: 600 }}>
+              💡 Click any date to adjust past/future attendance
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(38px, 1fr))', gap: '6px' }}>
+            {getAllDaysInMonth(year, month).map((dateStr) => {
+              const dayNum = parseInt(dateStr.split('-')[2], 10);
+              const dayData = summary?.daysStatus?.[dateStr] || {};
+              const maidVal = dayData['topic_maid']?.presence;
+              const isPresentDay = maidVal === true || maidVal === 1 || maidVal === 'present';
+              const isAbsentDay = (maidVal === false || maidVal === 0 || maidVal === 'absent') && maidVal != null;
+
+              let bg = 'rgba(255, 255, 255, 0.04)';
+              let border = 'var(--border-subtle)';
+              let color = 'var(--text-muted)';
+
+              if (isPresentDay) {
+                bg = 'rgba(16, 185, 129, 0.18)';
+                border = 'rgba(16, 185, 129, 0.4)';
+                color = 'var(--emerald)';
+              } else if (isAbsentDay) {
+                bg = 'rgba(244, 63, 94, 0.18)';
+                border = 'rgba(244, 63, 94, 0.4)';
+                color = 'var(--rose)';
+              }
+
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  onClick={() => onSelectDate && onSelectDate(dateStr)}
+                  title={`${dateStr}: ${isPresentDay ? 'Present' : isAbsentDay ? 'Absent' : 'Not marked'} — Click to edit`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '42px',
+                    borderRadius: '8px',
+                    background: bg,
+                    border: `1px solid ${border}`,
+                    color: color,
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>{dayNum}</span>
+                  <span style={{ fontSize: '0.62rem', marginTop: '-2px' }}>
+                    {isPresentDay ? '✓' : isAbsentDay ? '✕' : '·'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
