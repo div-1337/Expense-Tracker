@@ -2,12 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { getCurrentISTTime, getMillisUntilMidnightIST, formatCountdown } from '../lib/dateUtils';
-import { Clock, Cloud, CloudOff, CheckCircle2, BarChart3, Calendar, Sparkles } from 'lucide-react';
+import { Clock, Cloud, CloudOff, CheckCircle2, BarChart3, Calendar, Sparkles, AlertTriangle } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { checkSupabaseHealth } from '../lib/storage';
 
 export default function Header({ activeTab, setActiveTab, onOpenCloudSetup }) {
   const [istTime, setIstTime] = useState('');
   const [countdown, setCountdown] = useState('');
+  const [health, setHealth] = useState({ connected: isSupabaseConfigured, reason: isSupabaseConfigured ? 'ok' : 'keys_missing' });
+
+  useEffect(() => {
+    checkSupabaseHealth().then(setHealth);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -52,23 +58,56 @@ export default function Header({ activeTab, setActiveTab, onOpenCloudSetup }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={onOpenCloudSetup}
-            className={`cloud-status-btn ${isSupabaseConfigured ? 'connected' : ''}`}
-            title="Cloud Sync Setup"
+            className={`cloud-status-btn ${health.connected ? 'connected' : ''}`}
+            title="Cloud Sync Setup & Diagnostics"
           >
-            {isSupabaseConfigured ? (
+            {health.connected ? (
               <>
                 <Cloud size={15} color="var(--emerald)" />
-                <span>Supabase Live</span>
+                <span style={{ color: 'var(--emerald)' }}>Cloud Active</span>
+              </>
+            ) : health.reason === 'tables_missing' ? (
+              <>
+                <CloudOff size={15} color="var(--rose)" />
+                <span style={{ color: 'var(--rose)' }}>SQL Tables Missing!</span>
               </>
             ) : (
               <>
                 <CloudOff size={15} color="var(--amber)" />
-                <span>Local Mode (Connect Cloud)</span>
+                <span style={{ color: 'var(--amber)' }}>Local Mode (Connect Cloud)</span>
               </>
             )}
           </button>
         </div>
       </div>
+
+      {health.reason === 'tables_missing' && (
+        <div
+          onClick={onOpenCloudSetup}
+          style={{
+            background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(244, 63, 94, 0.08))',
+            border: '1.5px solid var(--rose)',
+            borderRadius: 'var(--radius-md)',
+            padding: '10px 14px',
+            marginBottom: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            fontSize: '0.82rem',
+            color: '#ffffff',
+            boxShadow: '0 4px 16px rgba(244, 63, 94, 0.2)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} color="var(--rose)" />
+            <span><strong>Action Required:</strong> Supabase tables not created! Ticks will not save to cloud until SQL script is run.</span>
+          </div>
+          <span style={{ color: 'var(--rose)', fontWeight: 800, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+            Fix in 1 Min →
+          </span>
+        </div>
+      )}
 
       {/* IST Live Banner & Midnight Reset Clock */}
       <div className="ist-banner glass-card">

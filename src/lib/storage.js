@@ -84,8 +84,8 @@ export async function saveTopics(topics) {
           color: topic.color || '#10B981',
           type: topic.type,
           people: topic.people || [],
-          monthly_salary: topic.monthlySalary || null,
-          default_rate: topic.defaultRate || null
+          monthly_salary: topic.monthlySalary !== undefined && topic.monthlySalary !== null ? Number(topic.monthlySalary) : null,
+          default_rate: topic.defaultRate !== undefined && topic.defaultRate !== null ? Number(topic.defaultRate) : null
         });
       }
     } catch (e) {
@@ -130,21 +130,18 @@ export async function getDailyCheckins(dateStr) {
         .eq('date_ist', dateStr);
 
       if (!error && Array.isArray(data)) {
-        if (data.length > 0) {
-          const cloudResult = {};
-          data.forEach(item => {
-            if (!cloudResult[item.topic_id]) cloudResult[item.topic_id] = {};
-            if (item.item_key === 'presence') {
-              cloudResult[item.topic_id][item.item_key] = item.completed === true ? true : (item.completed === false ? false : (item.count > 0));
-            } else {
-              cloudResult[item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
-            }
-          });
-          result = { ...result, ...cloudResult };
-          allCheckins[dateStr] = result;
-          setLocal(STORAGE_KEYS.CHECKINS, allCheckins);
-        }
-        return result;
+        const cloudResult = {};
+        data.forEach(item => {
+          if (!cloudResult[item.topic_id]) cloudResult[item.topic_id] = {};
+          if (item.item_key === 'presence') {
+            cloudResult[item.topic_id][item.item_key] = item.completed === true ? true : (item.completed === false ? false : (item.count > 0));
+          } else {
+            cloudResult[item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
+          }
+        });
+        allCheckins[dateStr] = cloudResult;
+        setLocal(STORAGE_KEYS.CHECKINS, allCheckins);
+        return cloudResult;
       } else if (error) {
         console.warn('Supabase fetch error, using local:', error.message || error);
       }
@@ -233,8 +230,13 @@ export async function getRates() {
           if (t.id === 'topic_dinner' && t.default_rate != null) {
             currentRates.dinnerRate = Number(t.default_rate);
           }
-          if (t.id === 'topic_maid' && t.monthly_salary != null) {
-            currentRates.maidMonthlySalary = Number(t.monthly_salary);
+          if (t.id === 'topic_maid') {
+            if (t.monthly_salary != null) {
+              currentRates.maidMonthlySalary = Number(t.monthly_salary);
+            }
+            if (t.default_rate != null) {
+              currentRates.maidAllowedLeaves = Number(t.default_rate);
+            }
           }
         });
         setLocal(STORAGE_KEYS.RATES, currentRates);
@@ -267,10 +269,13 @@ export async function saveRates(newRates) {
           .update({ default_rate: Number(newRates.dinnerRate) })
           .eq('id', 'topic_dinner');
       }
-      if (newRates.maidMonthlySalary != null) {
+      if (newRates.maidMonthlySalary != null || newRates.maidAllowedLeaves != null) {
+        const updateObj = {};
+        if (newRates.maidMonthlySalary != null) updateObj.monthly_salary = Number(newRates.maidMonthlySalary);
+        if (newRates.maidAllowedLeaves != null) updateObj.default_rate = Number(newRates.maidAllowedLeaves);
         await supabase
           .from('tracker_topics')
-          .update({ monthly_salary: Number(newRates.maidMonthlySalary) })
+          .update(updateObj)
           .eq('id', 'topic_maid');
       }
     } catch (e) {
@@ -425,4 +430,47 @@ export function subscribeToTopics(onUpdate) {
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+/**
+ * Test Supabase Database connection & verify tables exist
+ */
+export async function checkSupabaseHealth() {
+  if (!isSupabaseConfigured || !supabase) {
+    return {
+      connected: false,
+      reason: 'keys_missing',
+      message: 'Supabase URL or Key not set. Running in Local Browser Storage.'
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.from('tracker_checkins').select('id').limit(1);
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.code === 'PGRST205') {
+        return {
+          connected: false,
+          reason: 'tables_missing',
+          message: 'Supabase keys valid, but SQL tables do not exist! Run the SQL script in Supabase SQL Editor.'
+        };
+      }
+      return {
+        connected: false,
+        reason: 'error',
+        message: error.message || 'Supabase query error'
+      };
+    }
+
+    return {
+      connected: true,
+      reason: 'ok',
+      message: 'Supabase Cloud Database connected & tables verified!'
+    };
+  } catch (err) {
+    return {
+      connected: false,
+      reason: 'exception',
+      message: err.message
+    };
+  }
 }
