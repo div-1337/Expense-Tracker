@@ -61,8 +61,24 @@ export default function Home() {
 
   // Real-time synchronization subscription (updates UI live when other roommates tick)
   useEffect(() => {
-    const unsubscribeCheckins = subscribeToCheckins(selectedDate, () => {
-      loadDayData(selectedDate);
+    const unsubscribeCheckins = subscribeToCheckins(selectedDate, (payload) => {
+      if (payload?.eventType && payload?.new && payload.new.date_ist === selectedDate) {
+        const item = payload.new;
+        setDayData((prev) => {
+          const topicObj = { ...(prev[item.topic_id] || {}) };
+          if (item.item_key === 'presence') {
+            topicObj[item.item_key] = item.completed === true ? true : (item.completed === false ? false : (item.count > 0));
+          } else {
+            topicObj[item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
+          }
+          return {
+            ...prev,
+            [item.topic_id]: topicObj
+          };
+        });
+      } else {
+        loadDayData(selectedDate);
+      }
     });
 
     const unsubscribeTopics = subscribeToTopics(() => {

@@ -588,17 +588,17 @@ input, select, textarea {
 }
 
 .presence-btn.present.active {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.08));
-  border-color: var(--emerald);
-  color: var(--emerald);
-  box-shadow: 0 4px 18px var(--emerald-glow);
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 18px var(--emerald-glow) !important;
 }
 
 .presence-btn.absent.active {
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(244, 63, 94, 0.08));
-  border-color: var(--rose);
-  color: var(--rose);
-  box-shadow: 0 4px 18px var(--rose-glow);
+  background: linear-gradient(135deg, #f43f5e, #e11d48) !important;
+  border-color: #f43f5e !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 18px var(--rose-glow) !important;
 }
 
 /* Add Custom Button */

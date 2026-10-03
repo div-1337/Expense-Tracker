@@ -139,9 +139,10 @@ export async function getDailyCheckins(dateStr) {
             cloudResult[item.topic_id][item.item_key] = item.count !== undefined && item.count !== null ? Number(item.count) : (item.completed ? 1 : 0);
           }
         });
-        allCheckins[dateStr] = cloudResult;
+        const merged = { ...result, ...cloudResult };
+        allCheckins[dateStr] = merged;
         setLocal(STORAGE_KEYS.CHECKINS, allCheckins);
-        return cloudResult;
+        return merged;
       } else if (error) {
         console.warn('Supabase fetch error, using local:', error.message || error);
       }
@@ -395,8 +396,8 @@ export function subscribeToCheckins(dateStr, onUpdate) {
         table: 'tracker_checkins',
         filter: `date_ist=eq.${dateStr}`
       },
-      () => {
-        onUpdate();
+      (payload) => {
+        onUpdate(payload);
       }
     )
     .subscribe();
